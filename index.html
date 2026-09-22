@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SC / BCC / BCCZ Lattice → STL</title>
+<style>
+  :root{
+    --bg:#f3f5f7;
+    --card:#ffffff;
+    --line:#d9dee5;
+    --text:#20252b;
+    --muted:#68727d;
+    --accent:#1677ff;
+    --accent2:#0958d9;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:Segoe UI,Microsoft YaHei,system-ui,sans-serif;
+  }
+  .wrap{max-width:1050px;margin:auto;padding:28px 20px 42px}
+  h1{margin:0 0 5px;font-size:28px}
+  .sub{margin:0 0 22px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:330px 1fr;gap:18px}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px;
+  }
+  .row{margin-bottom:15px}
+  label{display:block;font-size:14px;font-weight:700;margin-bottom:7px}
+  input,select,button{
+    width:100%;
+    font:inherit;
+    border-radius:9px;
+    padding:9px 10px;
+  }
+  input,select{border:1px solid #c8ced6;background:#fff}
+  input:focus,select:focus{outline:2px solid #b8d4ff;border-color:var(--accent)}
+  .hidden{display:none}
+  .dims{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .small{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45}
+  button{
+    cursor:pointer;
+    border:0;
+    font-weight:700;
+    padding:11px 12px;
+    margin-top:4px;
+  }
+  .primary{background:var(--accent);color:#fff}
+  .primary:hover{background:var(--accent2)}
+  .secondary{
+    background:#eef4ff;
+    color:#0756b7;
+    border:1px solid #c9dcff;
+    margin-top:9px;
+  }
+  .secondary:hover{background:#e1edff}
+  canvas{
+    width:100%;
+    height:440px;
+    display:block;
+    border-radius:10px;
+    border:1px solid #222b35;
+    background:
+      radial-gradient(circle at 50% 45%,#1a222c 0%,#10161d 55%,#090d12 100%);
+    cursor:grab;
+  }
+  canvas:active{cursor:grabbing}
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    margin-top:12px;
+  }
+  .stat{
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:10px;
+    min-width:0;
+  }
+  .stat b{
+    display:block;
+    font-size:17px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .stat span{font-size:12px;color:var(--muted)}
+  .note{
+    margin-top:14px;
+    padding:11px 12px;
+    background:#f8fafc;
+    border:1px solid var(--line);
+    border-radius:9px;
+    font-size:12px;
+    line-height:1.55;
+    color:#4e5863;
+  }
+  .titlebox{
+    padding:12px;
+    border:1px solid #dbe7f8;
+    background:#f7fbff;
+    border-radius:9px;
+    margin-bottom:16px;
+  }
+  .titlebox b{display:block;margin-bottom:3px}
+  @media(max-width:760px){
+    .grid{grid-template-columns:1fr}
+    canvas{height:330px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SC / BCC / BCCZ Lattice → STL</h1>
+  <p class="sub">参数化生成 Simple Cubic、BCC 和 BCCZ 杆件晶格。</p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="titlebox">
+        <b id="typeTitle">Simple Cubic</b>
+        <span id="typeDescription">规则立方晶格：每个节点沿 X / Y / Z 三个方向连接。</span>
+      </div>
+
+      <div class="row">
+        <label for="latticeType">Lattice type · 晶格类型</label>
+        <select id="latticeType">
+          <option value="sc">Simple Cubic（方杆）</option>
+          <option value="bcc">BCC（圆斜杆）</option>
+          <option value="bccz">BCCZ（圆斜杆 + Z向圆杆）</option>
+        </select>
+      </div>
+
+      <div id="scControls">
+        <div class="row">
+          <label for="pore">Pore opening · 净空隙尺寸（mm）</label>
+          <input id="pore" type="number" step="any" value="2">
+          <div class="small">相邻方杆内表面之间的净距离，不包含杆宽；接受任意大于 0 的毫米数值。</div>
+        </div>
+
+        <div class="row">
+          <label for="width">Strut width · 方杆边长（mm）</label>
+          <input id="width" type="number" step="any" value="0.4">
+          <div class="small">杆件截面为正方形；例如 0.02 mm = 20 μm，不设工艺下限。</div>
+        </div>
+      </div>
+
+      <div id="bccControls" class="hidden">
+        <div class="row">
+          <label for="cellEdge">Unit-cell edge · 单胞边长（mm）</label>
+          <input id="cellEdge" type="number" step="any" value="2">
+          <div class="small">相邻角节点的中心距。BCC孔口由斜杆共同决定，因此不使用单一净空隙参数。</div>
+        </div>
+
+        <div class="row">
+          <label for="diameter">Strut diameter · 圆杆直径（mm）</label>
+          <input id="diameter" type="number" step="any" value="0.2">
+          <div class="small">例如 0.02 mm = 20 μm，不设工艺下限。</div>
+        </div>
+
+        <div class="row">
+          <label for="segments">Circular segments · 圆杆分段数</label>
+          <input id="segments" type="number" min="3" step="1" value="12">
+          <div class="small">12通常足够；数值越大，圆杆越光滑，STL也越大。</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <label id="countLabel">Pores · 净空隙数量（X × Y × Z）</label>
+        <div class="dims">
+          <input id="nx" type="number" min="1" max="80" step="1" value="5" title="X">
+          <input id="ny" type="number" min="1" max="80" step="1" value="5" title="Y">
+          <input id="nz" type="number" min="1" max="80" step="1" value="5" title="Z">
+        </div>
+        <div class="small" id="countHelp">表示 X / Y / Z 方向各有多少个净空隙。</div>
+      </div>
+
+      <button class="primary" id="download">生成 STL 下载文件</button>
+      <button class="secondary" id="preview">更新预览</button>
+      <div id="status" class="small" style="margin-top:10px;font-weight:600;color:#0756b7"></div>
+      <div id="downloadArea" style="display:none;margin-top:10px"></div>
+      <div class="small">请先把本 HTML 下载到电脑，再用 Chrome 或 Edge 双击打开；不要在聊天页面的预览框中导出 STL。</div>
+
+      <div class="note" id="recommendNote">
+        <b>推荐起点：</b> Pore opening = 2 mm，Strut width = 0.4 mm，5 × 5 × 5。
+        参数修改后点击“更新预览”即可检查结构。
+      </div>
+
+      <div class="note" id="stlNote">
+        <b>STL 说明：</b>模型由 X / Y / Z 三个方向的方形截面杆件构成。
+        最外侧保留完整杆宽。整体尺寸 = 空隙数 × 净空隙尺寸 +（空隙数 + 1）× 杆宽。
+        导出时只保留整个晶格并集的外表面，节点内部不含重复面，边角完整且模型封闭。
+      </div>
+    </div>
+
+    <div class="card">
+      <canvas id="view" width="760" height="440"></canvas>
+
+      <div class="stats">
+        <div class="stat">
+          <b id="sizeStat">12.4 × 12.4 × 12.4 mm</b>
+          <span id="sizeLabel">Overall size</span>
+        </div>
+        <div class="stat">
+          <b id="nodeStat">216</b>
+          <span>Nodes</span>
+        </div>
+        <div class="stat">
+          <b id="edgeStat">450</b>
+          <span>Struts</span>
+        </div>
+      </div>
+
+      <div class="note" id="previewNote">
+        鼠标拖动旋转，滚轮缩放。预览显示晶格骨架；下载的 STL 为实际方杆实体。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const canvas = $("view");
+const ctx = canvas.getContext("2d");
+
+let model = null;
+let rotX = 0.48;
+let rotY = -0.72;
+let zoom = 1.0;
+let dragging = false;
+let lastX = 0, lastY = 0;
+
+function getParams(){
+  const type=$("latticeType").value;
+  const nx   = Math.max(1, Math.min(80, Math.floor(Number($("nx").value) || 1)));
+  const ny   = Math.max(1, Math.min(80, Math.floor(Number($("ny").value) || 1)));
+  const nz   = Math.max(1, Math.min(80, Math.floor(Number($("nz").value) || 1)));
+  if(type==="sc"){
+    const pore=Number($("pore").value);
+    const width=Number($("width").value);
+    if(!Number.isFinite(pore) || pore<=0) throw new Error("净空隙尺寸必须是大于 0 的数值。");
+    if(!Number.isFinite(width) || width<=0) throw new Error("方杆边长必须是大于 0 的数值。");
+    return {type,pore,width,nx,ny,nz};
+  }
+  const cellEdge=Number($("cellEdge").value);
+  const diameter=Number($("diameter").value);
+  const segments=Math.floor(Number($("segments").value));
+  if(!Number.isFinite(cellEdge) || cellEdge<=0) throw new Error("单胞边长必须是大于 0 的数值。");
+  if(!Number.isFinite(diameter) || diameter<=0) throw new Error("圆杆直径必须是大于 0 的数值。");
+  if(!Number.isFinite(segments) || segments<3) throw new Error("圆杆分段数必须是至少 3 的整数。");
+  return {type,cellEdge,diameter,segments,nx,ny,nz};
+}
+
+function nodeId(i,j,k){
+  return `${i},${j},${k}`;
+}
+
+function buildSimpleCubic(p){
+  const nodes = [];
+  const index = new Map();
+
+  for(let i=0;i<=p.nx;i++){
+    for(let j=0;j<=p.ny;j++){
+      for(let k=0;k<=p.nz;k++){
+        const idx = nodes.length;
+        const pitch=p.pore+p.width;
+        const n = [p.width/2+i*pitch, p.width/2+j*pitch, p.width/2+k*pitch];
+        nodes.push(n);
+        index.set(nodeId(i,j,k), idx);
+      }
+    }
+  }
+
+  const edges = [];
+  function add(a,b){ edges.push([a,b]); }
+
+  for(let i=0;i<=p.nx;i++){
+    for(let j=0;j<=p.ny;j++){
+      for(let k=0;k<=p.nz;k++){
+        const a = index.get(nodeId(i,j,k));
+        if(i<p.nx) add(a,index.get(nodeId(i+1,j,k)));
+        if(j<p.ny) add(a,index.get(nodeId(i,j+1,k)));
+        if(k<p.nz) add(a,index.get(nodeId(i,j,k+1)));
+      }
+    }
+  }
+  return {type:"sc",nodes,edges};
+}
+
+function buildBCC(p){
+  const nodes=[];
+  const corners=new Map();
+  for(let i=0;i<=p.nx;i++){
+    for(let j=0;j<=p.ny;j++){
+      for(let k=0;k<=p.nz;k++){
+        corners.set(nodeId(i,j,k),nodes.length);
+        nodes.push([i*p.cellEdge,j*p.cellEdge,k*p.cellEdge]);
+      }
+    }
+  }
+
+  const edges=[];
+  for(let i=0;i<p.nx;i++){
+    for(let j=0;j<p.ny;j++){
+      for(let k=0;k<p.nz;k++){
+        const center=nodes.length;
+        nodes.push([(i+0.5)*p.cellEdge,(j+0.5)*p.cellEdge,(k+0.5)*p.cellEdge]);
+        for(let dx=0;dx<=1;dx++){
+          for(let dy=0;dy<=1;dy++){
+            for(let dz=0;dz<=1;dz++){
+              edges.push([center,corners.get(nodeId(i+dx,j+dy,k+dz))]);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if(p.type==="bccz"){
+    // Unique Z-direction columns on every corner-node grid line.
+    for(let i=0;i<=p.nx;i++){
+      for(let j=0;j<=p.ny;j++){
+        for(let k=0;k<p.nz;k++){
+          edges.push([corners.get(nodeId(i,j,k)),corners.get(nodeId(i,j,k+1))]);
+        }
+      }
+    }
+  }
+  return {type:p.type,nodes,edges};
+}
+
+function buildModel(p){
+  return p.type==="sc" ? buildSimpleCubic(p) : buildBCC(p);
+}
+
+function updateStats(p,g){
+  const sx = p.type==="sc" ? p.nx*p.pore+(p.nx+1)*p.width : p.nx*p.cellEdge;
+  const sy = p.type==="sc" ? p.ny*p.pore+(p.ny+1)*p.width : p.ny*p.cellEdge;
+  const sz = p.type==="sc" ? p.nz*p.pore+(p.nz+1)*p.width : p.nz*p.cellEdge;
+  $("sizeStat").textContent =
+    `${formatNum(sx)} × ${formatNum(sy)} × ${formatNum(sz)} mm`;
+  $("nodeStat").textContent = g.nodes.length.toLocaleString();
+  $("edgeStat").textContent = g.edges.length.toLocaleString();
+}
+
+function formatNum(x){
+  return Number(x.toFixed(3)).toString();
+}
+
+function normalizedNodes(nodes){
+  if(!nodes.length) return [];
+  let min=[Infinity,Infinity,Infinity], max=[-Infinity,-Infinity,-Infinity];
+  for(const p of nodes){
+    for(let a=0;a<3;a++){
+      min[a]=Math.min(min[a],p[a]);
+      max[a]=Math.max(max[a],p[a]);
+    }
+  }
+  const spans = max.map((v,i)=>Math.max(v-min[i],1e-9));
+  return nodes.map(p=>[
+    (p[0]-min[0])/spans[0]-0.5,
+    (p[1]-min[1])/spans[1]-0.5,
+    (p[2]-min[2])/spans[2]-0.5
+  ]);
+}
+
+function project(v){
+  const [x,y,z]=v;
+  const cy=Math.cos(rotY), sy=Math.sin(rotY);
+  const cx=Math.cos(rotX), sx=Math.sin(rotX);
+
+  const x1=x*cy-z*sy;
+  const z1=x*sy+z*cy;
+  const y2=y*cx-z1*sx;
+  const z2=y*sx+z1*cx;
+
+  const s=285*zoom;
+  return [canvas.width/2+x1*s, canvas.height/2-y2*s, z2];
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!model) return;
+
+  const pts = normalizedNodes(model.nodes).map(project);
+
+  const visibleEdges = model.edges.map(e=>{
+    const a=pts[e[0]], b=pts[e[1]];
+    return {a,b,z:(a[2]+b[2])/2};
+  }).sort((a,b)=>a.z-b.z);
+
+  ctx.lineCap=model.type==="sc" ? "square" : "round";
+  ctx.lineJoin=model.type==="sc" ? "miter" : "round";
+
+  // back-to-front drawing
+  for(const e of visibleEdges){
+    ctx.beginPath();
+    ctx.moveTo(e.a[0],e.a[1]);
+    ctx.lineTo(e.b[0],e.b[1]);
+    ctx.lineWidth = 4.5;
+    ctx.strokeStyle = "rgba(120,220,255,0.82)";
+    ctx.stroke();
+  }
+
+  // Node markers follow the selected section style.
+  for(const p of pts){
+    const r = 3.4;
+    ctx.fillStyle="rgba(230,248,255,0.95)";
+    if(model.type==="sc"){
+      ctx.fillRect(p[0]-r,p[1]-r,r*2,r*2);
+    }else{
+      ctx.beginPath();
+      ctx.arc(p[0],p[1],r,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+function updateTypeUI(){
+  const type=$("latticeType").value;
+  const isSC=type==="sc";
+  $("scControls").classList.toggle("hidden",!isSC);
+  $("bccControls").classList.toggle("hidden",isSC);
+  $("downloadArea").style.display="none";
+  $("downloadArea").innerHTML="";
+
+  if(isSC){
+    $("typeTitle").textContent="Simple Cubic";
+    $("typeDescription").textContent="规则立方晶格：每个节点沿 X / Y / Z 三个方向连接。";
+    $("countLabel").textContent="Pores · 净空隙数量（X × Y × Z）";
+    $("countHelp").textContent="表示 X / Y / Z 方向各有多少个净空隙。";
+    $("sizeLabel").textContent="Overall size";
+    $("recommendNote").innerHTML="<b>推荐起点：</b> Pore opening = 2 mm，Strut width = 0.4 mm，5 × 5 × 5。参数修改后点击“更新预览”即可检查结构。";
+    $("stlNote").innerHTML="<b>STL 说明：</b>模型由 X / Y / Z 三个方向的方形截面杆件构成。最外侧保留完整杆宽。整体尺寸 = 空隙数 × 净空隙尺寸 +（空隙数 + 1）× 杆宽。导出时只保留整个晶格并集的外表面。";
+    $("previewNote").textContent="鼠标拖动旋转，滚轮缩放。预览显示晶格骨架；下载的 STL 为实际方杆实体。";
+  }else{
+    const isZ=type==="bccz";
+    $("typeTitle").textContent=isZ ? "BCCZ" : "BCC";
+    $("typeDescription").textContent=isZ
+      ? "体心连接八个角点，并在角节点之间增加 Z 方向竖杆。"
+      : "每个单胞的体心分别连接八个角点，不包含立方体边框。";
+    $("countLabel").textContent="Unit cells · 单胞数量（X × Y × Z）";
+    $("countHelp").textContent="表示 X / Y / Z 方向各重复多少个 BCC 单胞。";
+    $("sizeLabel").textContent="Nominal node span";
+    $("recommendNote").innerHTML="<b>推荐起点：</b> Unit-cell edge = 2 mm，Strut diameter = 0.2 mm，3 × 3 × 3，Circular segments = 12。";
+    $("stlNote").innerHTML="<b>STL 说明：</b>斜杆和竖杆均为圆杆。显示尺寸是最外层角节点中心之间的名义跨度；圆杆截面会在边界节点附近略微超出该跨度。STL由相交的封闭圆柱组成，常用切片软件通常会自动合并；若用于严格有限元分析，建议再做布尔并集。";
+    $("previewNote").textContent=isZ
+      ? "BCCZ预览：体心斜杆 + Z方向竖杆。鼠标拖动旋转，滚轮缩放。"
+      : "BCC预览：体心连接八个角点的圆斜杆。鼠标拖动旋转，滚轮缩放。";
+  }
+  rebuild();
+}
+
+function rebuild(){
+  try{
+    const p=getParams();
+    model=buildModel(p);
+    updateStats(p,model);
+    $("status").textContent="";
+    draw();
+  }catch(err){
+    $("status").textContent="参数错误："+(err?.message||err);
+  }
+}
+
+function vsub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]}
+function vcross(a,b){
+  return [
+    a[1]*b[2]-a[2]*b[1],
+    a[2]*b[0]-a[0]*b[2],
+    a[0]*b[1]-a[1]*b[0]
+  ];
+}
+function vnorm(a){
+  const l=Math.hypot(a[0],a[1],a[2]) || 1;
+  return [a[0]/l,a[1]/l,a[2]/l];
+}
+function vadd(a,b){return [a[0]+b[0],a[1]+b[1],a[2]+b[2]]}
+function vmul(a,s){return [a[0]*s,a[1]*s,a[2]*s]}
+function triangleNormal(t){
+  return vnorm(vcross(vsub(t[1],t[0]),vsub(t[2],t[0])));
+}
+
+function cylinderTriangles(a,b,r,segments){
+  const axis=vnorm(vsub(b,a));
+  const helper=Math.abs(axis[0])<0.9 ? [1,0,0] : [0,1,0];
+  const u=vnorm(vcross(axis,helper));
+  const v=vcross(axis,u);
+  const A=[],B=[];
+  for(let i=0;i<segments;i++){
+    const t=2*Math.PI*i/segments;
+    const d=vadd(vmul(u,Math.cos(t)*r),vmul(v,Math.sin(t)*r));
+    A.push(vadd(a,d));
+    B.push(vadd(b,d));
+  }
+  const tris=[];
+  for(let i=0;i<segments;i++){
+    const j=(i+1)%segments;
+    tris.push([A[i],A[j],B[j]],[A[i],B[j],B[i]]);
+    tris.push([a,A[j],A[i]],[b,B[i],B[j]]);
+  }
+  return tris;
+}
+
+// Split an axis into full-width strut bands and clear pore intervals.
+// There are n pores and n+1 strut bands, including full outer struts.
+function axisGrid(n,pore,width){
+  const pitch=pore+width;
+  const end=n*pore+(n+1)*width;
+  const raw=[0,end];
+  for(let i=0;i<=n;i++){
+    const c=width/2+i*pitch;
+    raw.push(c-width/2,c+width/2);
+  }
+  raw.sort((a,b)=>a-b);
+  const coords=[];
+  for(const value of raw){
+    if(!coords.length || Math.abs(value-coords[coords.length-1])>1e-9){
+      coords.push(value);
+    }
+  }
+  const bands=[];
+  for(let i=0;i<coords.length-1;i++){
+    const mid=(coords[i]+coords[i+1])/2;
+    const nearestIndex=Math.round((mid-width/2)/pitch);
+    const nearest=width/2+nearestIndex*pitch;
+    bands.push(nearestIndex>=0 && nearestIndex<=n && Math.abs(mid-nearest)<=width/2+1e-9);
+  }
+  return {coords,bands};
+}
+
+function squareLatticeTriangles(p){
+  const gx=axisGrid(p.nx,p.pore,p.width);
+  const gy=axisGrid(p.ny,p.pore,p.width);
+  const gz=axisGrid(p.nz,p.pore,p.width);
+  const ax=gx.bands.length, ay=gy.bands.length, az=gz.bands.length;
+  const occupied=new Uint8Array(ax*ay*az);
+  const at=(i,j,k)=>(i*ay+j)*az+k;
+
+  for(let i=0;i<ax;i++) for(let j=0;j<ay;j++) for(let k=0;k<az;k++){
+    // X-strut: Y and Z are in node bands; analogous for Y and Z struts.
+    occupied[at(i,j,k)] =
+      (gy.bands[j] && gz.bands[k]) ||
+      (gx.bands[i] && gz.bands[k]) ||
+      (gx.bands[i] && gy.bands[j]);
+  }
+
+  const tris=[];
+  const isFilled=(i,j,k)=>
+    i>=0 && i<ax && j>=0 && j<ay && k>=0 && k<az && occupied[at(i,j,k)];
+  const quad=(a,b,c,d)=>{
+    tris.push([a,b,c],[a,c,d]);
+  };
+
+  for(let i=0;i<ax;i++) for(let j=0;j<ay;j++) for(let k=0;k<az;k++){
+    if(!occupied[at(i,j,k)]) continue;
+    const x0=gx.coords[i], x1=gx.coords[i+1];
+    const y0=gy.coords[j], y1=gy.coords[j+1];
+    const z0=gz.coords[k], z1=gz.coords[k+1];
+
+    if(!isFilled(i-1,j,k)) quad([x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]);
+    if(!isFilled(i+1,j,k)) quad([x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[x1,y0,z1]);
+    if(!isFilled(i,j-1,k)) quad([x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1]);
+    if(!isFilled(i,j+1,k)) quad([x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0]);
+    if(!isFilled(i,j,k-1)) quad([x0,y0,z0],[x0,y1,z0],[x1,y1,z0],[x1,y0,z0]);
+    if(!isFilled(i,j,k+1)) quad([x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]);
+  }
+  return tris;
+}
+
+function buildBinarySTL(p,g){
+  const tris=[];
+  if(p.type==="sc"){
+    tris.push(...squareLatticeTriangles(p));
+  }else{
+    const radius=p.diameter/2;
+    for(const [ia,ib] of g.edges){
+      tris.push(...cylinderTriangles(g.nodes[ia],g.nodes[ib],radius,p.segments));
+    }
+  }
+
+  const buffer = new ArrayBuffer(84 + tris.length*50);
+  const view = new DataView(buffer);
+
+  const header = new Uint8Array(buffer,0,80);
+  const title = "SC BCC BCCZ Lattice STL Generator";
+  for(let i=0;i<title.length;i++) header[i]=title.charCodeAt(i);
+
+  view.setUint32(80,tris.length,true);
+
+  let offset=84;
+  for(const tri of tris){
+    const n=triangleNormal(tri);
+
+    view.setFloat32(offset,n[0],true);
+    view.setFloat32(offset+4,n[1],true);
+    view.setFloat32(offset+8,n[2],true);
+    offset+=12;
+
+    for(const v of tri){
+      view.setFloat32(offset,v[0],true);
+      view.setFloat32(offset+4,v[1],true);
+      view.setFloat32(offset+8,v[2],true);
+      offset+=12;
+    }
+
+    view.setUint16(offset,0,true);
+    offset+=2;
+  }
+
+  return new Blob([buffer],{type:"model/stl"});
+}
+
+let currentDownloadURL=null;
+
+function downloadSTL(){
+  const status = $("status");
+  const area = $("downloadArea");
+  area.style.display = "none";
+  area.innerHTML = "";
+
+  try {
+    const p=getParams();
+    const g=buildModel(p);
+    const blob=buildBinarySTL(p,g);
+
+    const filename = p.type==="sc"
+      ? `simple_cubic_${p.nx}x${p.ny}x${p.nz}_pore${formatNum(p.pore)}mm_square_strut${formatNum(p.width)}mm.stl`
+      : `${p.type}_${p.nx}x${p.ny}x${p.nz}_cell${formatNum(p.cellEdge)}mm_round_strut${formatNum(p.diameter)}mm.stl`;
+
+    if(currentDownloadURL) URL.revokeObjectURL(currentDownloadURL);
+    currentDownloadURL=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=currentDownloadURL;
+    a.download=filename;
+    a.textContent=`下载 STL：${filename}（${(blob.size/1024).toFixed(1)} KB）`;
+    a.style.cssText="display:block;padding:10px 12px;background:#eef4ff;border:1px solid #c9dcff;border-radius:9px;color:#0756b7;font-weight:700;text-decoration:none;";
+    area.appendChild(a);
+    area.style.display="block";
+    status.textContent = "STL 已生成。请点击下方蓝色下载链接保存文件。";
+  } catch (err) {
+    console.error(err);
+    status.textContent = "导出失败：" + (err?.message || err);
+  }
+}
+
+canvas.addEventListener("pointerdown",e=>{
+  dragging=true;
+  lastX=e.clientX;
+  lastY=e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove",e=>{
+  if(!dragging) return;
+  rotY+=(e.clientX-lastX)*0.008;
+  rotX+=(e.clientY-lastY)*0.008;
+  lastX=e.clientX;
+  lastY=e.clientY;
+  draw();
+});
+
+canvas.addEventListener("pointerup",()=>dragging=false);
+canvas.addEventListener("pointercancel",()=>dragging=false);
+
+canvas.addEventListener("wheel",e=>{
+  e.preventDefault();
+  zoom*=e.deltaY<0 ? 1.08 : 0.92;
+  zoom=Math.max(0.35,Math.min(3.2,zoom));
+  draw();
+},{passive:false});
+
+$("preview").addEventListener("click",rebuild);
+$("download").addEventListener("click",downloadSTL);
+$("latticeType").addEventListener("change",updateTypeUI);
+
+updateTypeUI();
+</script>
+</body>
+</html>
