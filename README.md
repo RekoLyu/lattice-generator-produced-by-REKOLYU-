@@ -15,24 +15,7 @@
 
 连续尺寸不设置人为工艺下限，只要求输入值大于 0。
 
-## 本地使用
 
-双击 \`index.html\`，使用 Chrome 或 Edge 打开。设置参数并更新预览后，点击“生成 STL 下载文件”，再点击页面生成的蓝色下载链接。
-
-## 发布到 GitHub Pages
-
-1. 在 GitHub 创建一个名为 \`lattice-generator\` 的公开仓库。
-2. 将本项目中的 \`index.html\`、\`README.md\` 和 \`LICENSE\` 上传到仓库根目录。
-3. 打开仓库的 **Settings → Pages**。
-4. 在 **Build and deployment** 中选择 **Deploy from a branch**。
-5. Branch 选择 \`main\`，目录选择 \`/(root)\`，然后保存。
-6. 等待 GitHub 完成部署。网页地址通常为：
-
-   \`https://你的GitHub用户名.github.io/lattice-generator/\`
-
-## 后续更新
-
-用新版 \`index.html\` 替换仓库根目录中的旧文件并提交。GitHub Pages 会自动重新发布，网页地址保持不变。若浏览器仍显示旧版，可按 \`Ctrl + F5\` 强制刷新。
 
 ## 几何说明
 
@@ -42,7 +25,7 @@
 
 \`L = N × P + (N + 1) × W\`
 
-SC 导出时保留整个方杆晶格并集的外表面。
+SC 导出时保留整个方杆晶格并集的外表面。注：网页显示不代表实际建模，实际效果观测可将STL导入OPEN3DVEIWER等线上3D模型查看器。
 
 ### BCC / BCCZ
 
